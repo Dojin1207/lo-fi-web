@@ -4,6 +4,7 @@ const storageKeys = {
   gifType: "lofi-gif-type",
   gifMode: "lofi-gif-mode",
   gifSize: "lofi-gif-size",
+  widgetWidth: "lofi-widget-width",
   mixerRain: "lofi-mixer-rain",
   mixerCity: "lofi-mixer-city",
   mixerCoffee: "lofi-mixer-coffee",
@@ -119,6 +120,7 @@ const elements = {
   gifStage: document.querySelector("#gifStage"),
   fallbackVisualizer: document.querySelector("#fallbackVisualizer"),
   gifSizeSlider: document.querySelector("#gifSizeSlider"),
+  widgetWidthSlider: document.querySelector("#widgetWidthSlider"),
   clearGifButton: document.querySelector("#clearGifButton"),
   audioPlayer: document.querySelector("#audioPlayer"),
   trackTitle: document.querySelector("#trackTitle"),
@@ -1076,34 +1078,9 @@ function normalizeMediaUrl(source) {
   return trimmed;
 }
 
-function fitGifStageToMedia(mediaElement) {
-  const mediaWidth = mediaElement.videoWidth || mediaElement.naturalWidth;
-  const mediaHeight = mediaElement.videoHeight || mediaElement.naturalHeight;
-  const stageWidth = elements.gifStage.clientWidth;
-
-  if (!mediaWidth || !mediaHeight || !stageWidth) {
-    return;
-  }
-
-  const viewportLimit = Math.max(260, window.innerHeight * 0.58);
-  const targetHeight = Math.min(Math.max((stageWidth * mediaHeight) / mediaWidth, 220), viewportLimit);
-  document.documentElement.style.setProperty("--gif-height", `${Math.round(targetHeight)}px`);
-}
-
 function prepareMediaFit(mediaElement) {
   mediaElement.style.objectFit = "contain";
   mediaElement.style.objectPosition = "center center";
-
-  if (mediaElement instanceof HTMLVideoElement) {
-    mediaElement.addEventListener("loadedmetadata", () => fitGifStageToMedia(mediaElement), { once: true });
-    return;
-  }
-
-  mediaElement.addEventListener("load", () => fitGifStageToMedia(mediaElement), { once: true });
-
-  if (mediaElement.complete) {
-    fitGifStageToMedia(mediaElement);
-  }
 }
 
 function applyGif(source, persist = true, mediaType = "") {
@@ -1320,10 +1297,17 @@ async function prevTrack() {
 }
 
 function setGifSize(value) {
-  const clamped = Math.min(340, Math.max(160, Number(value) || 260));
+  const clamped = Math.min(680, Math.max(320, Number(value) || 520));
   document.documentElement.style.setProperty("--gif-height", `${clamped}px`);
   elements.gifSizeSlider.value = String(clamped);
   safeStore(storageKeys.gifSize, String(clamped));
+}
+
+function setWidgetWidth(value) {
+  const clamped = Math.min(750, Math.max(360, Number(value) || 550));
+  document.documentElement.style.setProperty("--widget-width", `${clamped}px`);
+  elements.widgetWidthSlider.value = String(clamped);
+  safeStore(storageKeys.widgetWidth, String(clamped));
 }
 
 async function hydrateSettings() {
@@ -1332,6 +1316,7 @@ async function hydrateSettings() {
   const savedGifType = localStorage.getItem(storageKeys.gifType) || "";
   const savedGifMode = localStorage.getItem(storageKeys.gifMode) || "";
   const savedGifSize = localStorage.getItem(storageKeys.gifSize);
+  const savedWidgetWidth = localStorage.getItem(storageKeys.widgetWidth);
 
   if (savedBackground) {
     applyBackground(savedBackground, false);
@@ -1355,6 +1340,15 @@ async function hydrateSettings() {
   if (savedGifSize) {
     elements.gifSizeSlider.value = savedGifSize;
     setGifSize(savedGifSize);
+  } else {
+    setGifSize(elements.gifSizeSlider.value);
+  }
+
+  if (savedWidgetWidth) {
+    elements.widgetWidthSlider.value = savedWidgetWidth;
+    setWidgetWidth(savedWidgetWidth);
+  } else {
+    setWidgetWidth(elements.widgetWidthSlider.value);
   }
 
   elements.volumeSlider.value = String(state.volume);
@@ -1453,6 +1447,7 @@ elements.applyGifUrl.addEventListener("click", () => {
 });
 
 elements.gifSizeSlider.addEventListener("input", (event) => setGifSize(event.target.value));
+elements.widgetWidthSlider.addEventListener("input", (event) => setWidgetWidth(event.target.value));
 elements.clearGifButton.addEventListener("click", clearGif);
 
 elements.volumeSlider.addEventListener("input", (event) => updateVolume(event.target.value));
@@ -1461,14 +1456,6 @@ elements.playButton.addEventListener("click", togglePlayback);
 elements.nextButton.addEventListener("click", nextTrack);
 elements.prevButton.addEventListener("click", prevTrack);
 elements.audioPlayer.addEventListener("ended", nextTrack);
-
-window.addEventListener("resize", () => {
-  const activeMedia = elements.gifVideo.hidden ? elements.gifImage : elements.gifVideo;
-
-  if (!activeMedia.hidden) {
-    fitGifStageToMedia(activeMedia);
-  }
-});
 
 hydrateSettings().catch(() => {});
 renderTracks();
