@@ -902,6 +902,12 @@ function safeStore(key, value) {
   }
 }
 
+function bind(element, eventName, handler) {
+  if (element) {
+    element.addEventListener(eventName, handler);
+  }
+}
+
 function openMediaDb() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("lofi-widget-media", 1);
@@ -1024,7 +1030,9 @@ function setMixerVolume(name, value, shouldStart = true) {
   };
   const nextValue = Math.min(1, Math.max(0, Number(value) || 0));
 
-  sliderMap[name].value = String(nextValue);
+  if (sliderMap[name]) {
+    sliderMap[name].value = String(nextValue);
+  }
   ambientMixer.setVolume(name, nextValue, shouldStart && state.isPlaying);
   safeStore(storageMap[name], String(nextValue));
 }
@@ -1337,14 +1345,18 @@ async function prevTrack() {
 function setGifSize(value) {
   const clamped = Math.min(680, Math.max(320, Number(value) || 520));
   document.documentElement.style.setProperty("--gif-height", `${clamped}px`);
-  elements.gifSizeSlider.value = String(clamped);
+  if (elements.gifSizeSlider) {
+    elements.gifSizeSlider.value = String(clamped);
+  }
   safeStore(storageKeys.gifSize, String(clamped));
 }
 
 function setWidgetWidth(value) {
   const clamped = Math.min(750, Math.max(360, Number(value) || 550));
   document.documentElement.style.setProperty("--widget-width", `${clamped}px`);
-  elements.widgetWidthSlider.value = String(clamped);
+  if (elements.widgetWidthSlider) {
+    elements.widgetWidthSlider.value = String(clamped);
+  }
   safeStore(storageKeys.widgetWidth, String(clamped));
 }
 
@@ -1376,16 +1388,20 @@ async function hydrateSettings() {
   }
 
   if (savedGifSize) {
-    elements.gifSizeSlider.value = savedGifSize;
+    if (elements.gifSizeSlider) {
+      elements.gifSizeSlider.value = savedGifSize;
+    }
     setGifSize(savedGifSize);
-  } else {
+  } else if (elements.gifSizeSlider) {
     setGifSize(elements.gifSizeSlider.value);
   }
 
   if (savedWidgetWidth) {
-    elements.widgetWidthSlider.value = savedWidgetWidth;
+    if (elements.widgetWidthSlider) {
+      elements.widgetWidthSlider.value = savedWidgetWidth;
+    }
     setWidgetWidth(savedWidgetWidth);
-  } else {
+  } else if (elements.widgetWidthSlider) {
     setWidgetWidth(elements.widgetWidthSlider.value);
   }
 
@@ -1397,40 +1413,47 @@ async function hydrateSettings() {
   applyLightState(state.lightsOn, false);
 }
 
-elements.settingsButton.addEventListener("click", openSettings);
-elements.closeSettingsButton.addEventListener("click", closeSettings);
-elements.panelBackdrop.addEventListener("click", closeSettings);
+bind(elements.settingsButton, "click", openSettings);
+bind(elements.closeSettingsButton, "click", closeSettings);
+bind(elements.panelBackdrop, "click", closeSettings);
 
-elements.lampHotspot.addEventListener("click", () => {
+bind(elements.lampHotspot, "click", () => {
   applyLightState(!state.lightsOn);
 });
 
-elements.todoForm.addEventListener("submit", (event) => {
+bind(elements.todoForm, "submit", (event) => {
   event.preventDefault();
-  addTodo(elements.todoInput.value);
+  addTodo(elements.todoInput?.value || "");
 });
 
-elements.mixerRain.addEventListener("input", (event) => {
+bind(elements.mixerRain, "input", (event) => {
   setMixerVolume("rain", event.target.value);
   setActiveSoundPreset("");
 });
 
-elements.mixerCity.addEventListener("input", (event) => {
+bind(elements.mixerCity, "input", (event) => {
   setMixerVolume("city", event.target.value);
   setActiveSoundPreset("");
 });
 
-elements.mixerCoffee.addEventListener("input", (event) => {
+bind(elements.mixerCoffee, "input", (event) => {
   setMixerVolume("coffee", event.target.value);
   setActiveSoundPreset("");
 });
 
 elements.soundPresetButtons.forEach((button) => {
   button.setAttribute("aria-pressed", "false");
-  button.addEventListener("click", () => applySoundPreset(button.dataset.soundPreset));
 });
 
-document.addEventListener("keydown", (event) => {
+bind(document, "click", (event) => {
+  const presetButton = event.target.closest?.("[data-sound-preset]");
+
+  if (presetButton) {
+    applySoundPreset(presetButton.dataset.soundPreset);
+  }
+});
+
+bind(document, "keydown", (event) => {
   const isInteractiveTarget = event.target.closest?.("button, input, textarea, select, label, [contenteditable='true']");
 
   if (event.key === "Escape") {
@@ -1468,23 +1491,23 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-elements.backgroundFile.addEventListener("change", (event) => {
+bind(elements.backgroundFile, "change", (event) => {
   readImageInput(event.target.files[0], (source) => applyBackground(source));
 });
 
-elements.applyBackgroundUrl.addEventListener("click", () => {
+bind(elements.applyBackgroundUrl, "click", () => {
   if (elements.backgroundUrl.value.trim()) {
     applyBackground(elements.backgroundUrl.value.trim());
   }
 });
 
-elements.resetBackgroundButton.addEventListener("click", resetBackground);
+bind(elements.resetBackgroundButton, "click", resetBackground);
 
-elements.gifFile.addEventListener("change", (event) => {
+bind(elements.gifFile, "change", (event) => {
   applyWidgetMediaFile(event.target.files[0]);
 });
 
-elements.applyGifUrl.addEventListener("click", () => {
+bind(elements.applyGifUrl, "click", () => {
   if (elements.gifUrl.value.trim()) {
     deleteWidgetMediaFile().catch(() => {});
     elements.gifUrl.value = normalizeMediaUrl(elements.gifUrl.value);
@@ -1492,16 +1515,16 @@ elements.applyGifUrl.addEventListener("click", () => {
   }
 });
 
-elements.gifSizeSlider.addEventListener("input", (event) => setGifSize(event.target.value));
-elements.widgetWidthSlider.addEventListener("input", (event) => setWidgetWidth(event.target.value));
-elements.clearGifButton.addEventListener("click", clearGif);
+bind(elements.gifSizeSlider, "input", (event) => setGifSize(event.target.value));
+bind(elements.widgetWidthSlider, "input", (event) => setWidgetWidth(event.target.value));
+bind(elements.clearGifButton, "click", clearGif);
 
-elements.volumeSlider.addEventListener("input", (event) => updateVolume(event.target.value));
+bind(elements.volumeSlider, "input", (event) => updateVolume(event.target.value));
 
-elements.playButton.addEventListener("click", togglePlayback);
-elements.nextButton.addEventListener("click", nextTrack);
-elements.prevButton.addEventListener("click", prevTrack);
-elements.audioPlayer.addEventListener("ended", nextTrack);
+bind(elements.playButton, "click", togglePlayback);
+bind(elements.nextButton, "click", nextTrack);
+bind(elements.prevButton, "click", prevTrack);
+bind(elements.audioPlayer, "ended", nextTrack);
 
 hydrateSettings().catch(() => {});
 renderTracks();
