@@ -1052,14 +1052,32 @@ function isVideoSource(source, mediaType = "") {
   }
 
   try {
-    const pathname = new URL(source, window.location.href).pathname.toLowerCase();
+    const url = new URL(source, window.location.href);
+    const pathname = url.pathname.toLowerCase();
+    const typeParam = (url.searchParams.get("type") || "").toLowerCase();
+
+    if (typeParam.includes("mp4") || typeParam.includes("webm") || typeParam.includes("video")) {
+      return true;
+    }
+
     return /\.(mp4|webm|ogv|ogg|mov|m4v)$/.test(pathname);
   } catch {
-    return /\.(mp4|webm|ogv|ogg|mov|m4v)(\?|#|$)/i.test(source);
+    return /\.(mp4|webm|ogv|ogg|mov|m4v)(\?|#|$)/i.test(source) || /[?&]type=(mp4|webm|video)/i.test(source);
   }
 }
 
+function normalizeMediaUrl(source) {
+  const trimmed = source.trim();
+
+  if (trimmed.startsWith("http://")) {
+    return `https://${trimmed.slice(7)}`;
+  }
+
+  return trimmed;
+}
+
 function applyGif(source, persist = true, mediaType = "") {
+  source = normalizeMediaUrl(source);
   const isVideo = isVideoSource(source, mediaType);
 
   if (isVideo) {
@@ -1397,7 +1415,8 @@ elements.gifFile.addEventListener("change", (event) => {
 elements.applyGifUrl.addEventListener("click", () => {
   if (elements.gifUrl.value.trim()) {
     deleteWidgetMediaFile().catch(() => {});
-    applyGif(elements.gifUrl.value.trim());
+    elements.gifUrl.value = normalizeMediaUrl(elements.gifUrl.value);
+    applyGif(elements.gifUrl.value);
   }
 });
 
