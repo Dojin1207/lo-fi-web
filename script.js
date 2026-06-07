@@ -8,6 +8,7 @@ const storageKeys = {
   mixerRain: "lofi-mixer-rain",
   mixerCity: "lofi-mixer-city",
   mixerCoffee: "lofi-mixer-coffee",
+  soundPreset: "lofi-sound-preset",
   todos: "lofi-todos",
   lights: "lofi-lights",
   volume: "lofi-volume",
@@ -133,6 +134,7 @@ const elements = {
   mixerRain: document.querySelector("#mixerRain"),
   mixerCity: document.querySelector("#mixerCity"),
   mixerCoffee: document.querySelector("#mixerCoffee"),
+  soundPresetButtons: document.querySelectorAll("[data-sound-preset]"),
   todoForm: document.querySelector("#todoForm"),
   todoInput: document.querySelector("#todoInput"),
   todoList: document.querySelector("#todoList"),
@@ -147,6 +149,14 @@ const state = {
   todos: [],
   lightsOn: localStorage.getItem(storageKeys.lights) !== "off",
   volume: Number(localStorage.getItem(storageKeys.volume)) || 0.62,
+};
+
+const soundPresets = {
+  rainy: { rain: 0.75, city: 0.12, coffee: 0.08 },
+  cafe: { rain: 0.12, city: 0.08, coffee: 0.68 },
+  city: { rain: 0.08, city: 0.72, coffee: 0.12 },
+  balanced: { rain: 0.38, city: 0.28, coffee: 0.34 },
+  silent: { rain: 0, city: 0, coffee: 0 },
 };
 
 class AmbientEngine {
@@ -1019,10 +1029,38 @@ function setMixerVolume(name, value, shouldStart = true) {
   safeStore(storageMap[name], String(nextValue));
 }
 
+function setActiveSoundPreset(name) {
+  elements.soundPresetButtons.forEach((button) => {
+    const isActive = button.dataset.soundPreset === name;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+
+  if (name) {
+    safeStore(storageKeys.soundPreset, name);
+  } else {
+    localStorage.removeItem(storageKeys.soundPreset);
+  }
+}
+
+function applySoundPreset(name) {
+  const preset = soundPresets[name];
+
+  if (!preset) {
+    return;
+  }
+
+  setMixerVolume("rain", preset.rain);
+  setMixerVolume("city", preset.city);
+  setMixerVolume("coffee", preset.coffee);
+  setActiveSoundPreset(name);
+}
+
 function hydrateMixer() {
   setMixerVolume("rain", localStorage.getItem(storageKeys.mixerRain) ?? elements.mixerRain.value, false);
   setMixerVolume("city", localStorage.getItem(storageKeys.mixerCity) ?? elements.mixerCity.value, false);
   setMixerVolume("coffee", localStorage.getItem(storageKeys.mixerCoffee) ?? elements.mixerCoffee.value, false);
+  setActiveSoundPreset(localStorage.getItem(storageKeys.soundPreset));
 }
 
 function applyLightState(lightsOn, persist = true) {
@@ -1374,14 +1412,22 @@ elements.todoForm.addEventListener("submit", (event) => {
 
 elements.mixerRain.addEventListener("input", (event) => {
   setMixerVolume("rain", event.target.value);
+  setActiveSoundPreset("");
 });
 
 elements.mixerCity.addEventListener("input", (event) => {
   setMixerVolume("city", event.target.value);
+  setActiveSoundPreset("");
 });
 
 elements.mixerCoffee.addEventListener("input", (event) => {
   setMixerVolume("coffee", event.target.value);
+  setActiveSoundPreset("");
+});
+
+elements.soundPresetButtons.forEach((button) => {
+  button.setAttribute("aria-pressed", "false");
+  button.addEventListener("click", () => applySoundPreset(button.dataset.soundPreset));
 });
 
 document.addEventListener("keydown", (event) => {
