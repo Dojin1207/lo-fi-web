@@ -1076,6 +1076,36 @@ function normalizeMediaUrl(source) {
   return trimmed;
 }
 
+function fitGifStageToMedia(mediaElement) {
+  const mediaWidth = mediaElement.videoWidth || mediaElement.naturalWidth;
+  const mediaHeight = mediaElement.videoHeight || mediaElement.naturalHeight;
+  const stageWidth = elements.gifStage.clientWidth;
+
+  if (!mediaWidth || !mediaHeight || !stageWidth) {
+    return;
+  }
+
+  const viewportLimit = Math.max(260, window.innerHeight * 0.58);
+  const targetHeight = Math.min(Math.max((stageWidth * mediaHeight) / mediaWidth, 220), viewportLimit);
+  document.documentElement.style.setProperty("--gif-height", `${Math.round(targetHeight)}px`);
+}
+
+function prepareMediaFit(mediaElement) {
+  mediaElement.style.objectFit = "contain";
+  mediaElement.style.objectPosition = "center center";
+
+  if (mediaElement instanceof HTMLVideoElement) {
+    mediaElement.addEventListener("loadedmetadata", () => fitGifStageToMedia(mediaElement), { once: true });
+    return;
+  }
+
+  mediaElement.addEventListener("load", () => fitGifStageToMedia(mediaElement), { once: true });
+
+  if (mediaElement.complete) {
+    fitGifStageToMedia(mediaElement);
+  }
+}
+
 function applyGif(source, persist = true, mediaType = "") {
   source = normalizeMediaUrl(source);
   const isVideo = isVideoSource(source, mediaType);
@@ -1085,6 +1115,7 @@ function applyGif(source, persist = true, mediaType = "") {
     elements.gifImage.hidden = true;
     elements.gifVideo.src = source;
     elements.gifVideo.hidden = false;
+    prepareMediaFit(elements.gifVideo);
     elements.gifVideo.load();
     elements.gifVideo.play().catch(() => {
       /* Autoplay can fail for some remote video sources. */
@@ -1095,6 +1126,7 @@ function applyGif(source, persist = true, mediaType = "") {
     elements.gifVideo.hidden = true;
     elements.gifImage.src = source;
     elements.gifImage.hidden = false;
+    prepareMediaFit(elements.gifImage);
   }
 
   elements.fallbackVisualizer.hidden = true;
@@ -1429,6 +1461,14 @@ elements.playButton.addEventListener("click", togglePlayback);
 elements.nextButton.addEventListener("click", nextTrack);
 elements.prevButton.addEventListener("click", prevTrack);
 elements.audioPlayer.addEventListener("ended", nextTrack);
+
+window.addEventListener("resize", () => {
+  const activeMedia = elements.gifVideo.hidden ? elements.gifImage : elements.gifVideo;
+
+  if (!activeMedia.hidden) {
+    fitGifStageToMedia(activeMedia);
+  }
+});
 
 hydrateSettings().catch(() => {});
 renderTracks();
